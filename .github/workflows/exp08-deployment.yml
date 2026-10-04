@@ -51,3 +51,33 @@ jobs:
           file: ./EXP-08-Automated-Deployment-Pipeline/Dockerfile
           push: true
           tags: ${{ secrets.DOCKER_USERNAME }}/mywebapp:${{ github.sha }}
+
+  deploy-minikube:
+    name: Deploy to Minikube
+    needs: build-test-push
+    runs-on: self-hosted
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Verify Kubernetes cluster
+        shell: cmd
+        run: |
+          kubectl get nodes
+          kubectl get deployment mywebapp-deployment
+
+      - name: Deploy Docker Hub image to Kubernetes
+        shell: cmd
+        run: |
+          kubectl set image deployment/mywebapp-deployment mywebapp=${{ secrets.DOCKER_USERNAME }}/mywebapp:${{ github.sha }}
+
+      - name: Wait for deployment rollout
+        shell: cmd
+        run: |
+          kubectl rollout status deployment/mywebapp-deployment --timeout=120s
+
+      - name: Verify deployment
+        shell: cmd
+        run: |
+          kubectl get deployment mywebapp-deployment
+          kubectl get pods
+          kubectl get service mywebapp-service
